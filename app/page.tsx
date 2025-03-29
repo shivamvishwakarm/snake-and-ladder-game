@@ -1,103 +1,217 @@
-import Image from "next/image";
+"use client";
+// pages/index.tsx
+import { useState, useEffect } from "react";
+import Head from "next/head";
+import GameBoard from "./components/GameBoard";
+import PlayerInfo from "./components/PlayerInfo";
+import DiceRoller from "./components/DiceRoller";
+// import styles from "./Home.module.css";
+import { GameState, GameRules, Player } from "@/app/types";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [gameState, setGameState] = useState<GameState>({
+    userPosition: 0,
+    botPosition: 0,
+    userStarted: false,
+    botStarted: false,
+    currentTurn: "user", // 'user' or 'bot'
+    diceValue: null,
+    gameOver: false,
+    winner: null,
+    message: "Roll a 1 or 6 to start!",
+  });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Define snake and ladder positions
+  const gameRules: GameRules = {
+    ladders: {
+      3: 22,
+      5: 17,
+      11: 33,
+      21: 56,
+      25: 40,
+      42: 60,
+      57: 76,
+      70: 93,
+    },
+    snakes: {
+      27: 8,
+      39: 19,
+      48: 30,
+      65: 52,
+      79: 41,
+      95: 73,
+      98: 64,
+    },
+  };
+
+  const rollDice = (): void => {
+    if (gameState.gameOver) return;
+
+    // Generate random number between 1 and 6
+    const diceValue = Math.floor(Math.random() * 6) + 1;
+
+    movePlayer("user", diceValue);
+  };
+
+  const movePlayer = (player: Player, diceValue: number): void => {
+    setGameState((prevState) => {
+      const newState = { ...prevState, diceValue };
+      const currentPosition =
+        player === "user" ? prevState.userPosition : prevState.botPosition;
+      const hasStarted =
+        player === "user" ? prevState.userStarted : prevState.botStarted;
+
+      let message = `${
+        player === "user" ? "You" : "Bot"
+      } rolled a ${diceValue}.`;
+
+      // Check if player can start
+      if (!hasStarted) {
+        if (diceValue === 1 || diceValue === 6) {
+          newState[`${player}Started`] = true;
+          newState[`${player}Position`] = 1;
+          message += ` ${player === "user" ? "You" : "Bot"} can start now!`;
+        } else {
+          message += ` Need 1 or 6 to start.`;
+        }
+      } else {
+        // Calculate new position
+        let newPosition = currentPosition + diceValue;
+
+        // Check if exceeding board size
+        if (newPosition > 100) {
+          message += ` ${
+            player === "user" ? "You" : "Bot"
+          } can't move, need exact roll to reach 100.`;
+        } else {
+          // Check for ladder
+          if (gameRules.ladders[newPosition]) {
+            const destination = gameRules.ladders[newPosition];
+            message += ` ${
+              player === "user" ? "You" : "Bot"
+            } climbed from ${newPosition} to ${destination}!`;
+            newPosition = destination;
+          }
+
+          // Check for snake
+          if (gameRules.snakes[newPosition]) {
+            const destination = gameRules.snakes[newPosition];
+            message += ` ${
+              player === "user" ? "You" : "Bot"
+            } slid from ${newPosition} to ${destination}!`;
+            newPosition = destination;
+          }
+
+          // Update position
+          newState[`${player}Position`] = newPosition;
+
+          // Check for win
+          if (newPosition === 100) {
+            newState.gameOver = true;
+            newState.winner = player;
+            message += ` ${
+              player === "user" ? "You" : "Bot"
+            } reached 100 and won the game!`;
+          }
+        }
+      }
+
+      // Update message and turn
+      newState.message = message;
+      if (diceValue === 1 || diceValue === 6) {
+        newState.message = `${player} Got extra turn`;
+        if (player === "bot") {
+          newState.currentTurn = "bot";
+          movePlayer("bot", Math.floor(Math.random() * 6) + 1);
+        }
+        return newState;
+      }
+      newState.currentTurn = player === "user" ? "bot" : "user";
+
+      return newState;
+    });
+  };
+
+  // Bot's turn
+  useEffect(() => {
+    if (gameState.currentTurn === "bot" && !gameState.gameOver) {
+      const botDelay = setTimeout(() => {
+        const diceValue = Math.floor(Math.random() * 6) + 1;
+
+        movePlayer("bot", diceValue);
+      }, 3000); // Delay for better UX
+
+      return () => clearTimeout(botDelay);
+    }
+  }, [gameState.currentTurn, gameState.gameOver]);
+
+  const resetGame = (): void => {
+    setGameState({
+      userPosition: 0,
+      botPosition: 0,
+      userStarted: false,
+      botStarted: false,
+      currentTurn: "user",
+      diceValue: null,
+      gameOver: false,
+      winner: null,
+      message: "Roll a 1 or 6 to start!",
+    });
+  };
+
+  return (
+    <div className="container">
+      <Head>
+        <title>Snake and Ladder Game</title>
+        <meta
+          name="description"
+          content="Modern Snake and Ladder game built with Next.js and TypeScript"
+        />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <main className="main">
+        <h1 className="title">Snake and Ladder</h1>
+
+        <div className="gameContainer">
+          <div className="gameInfo">
+            <PlayerInfo
+              user={{
+                name: "You",
+                position: gameState.userPosition,
+                started: gameState.userStarted,
+                isCurrentTurn: gameState.currentTurn === "user",
+              }}
+              bot={{
+                name: "Bot",
+                position: gameState.botPosition,
+                started: gameState.botStarted,
+                isCurrentTurn: gameState.currentTurn === "bot",
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
+            <DiceRoller
+              diceValue={gameState.diceValue}
+              onRoll={rollDice}
+              disabled={gameState.currentTurn === "bot" || gameState.gameOver}
+              message={gameState.message}
+            />
+
+            {gameState.gameOver && (
+              <button className="resetButton" onClick={resetGame}>
+                Play Again
+              </button>
+            )}
+          </div>
+
+          <GameBoard
+            userPosition={gameState.userPosition}
+            botPosition={gameState.botPosition}
+            ladders={gameRules.ladders}
+            snakes={gameRules.snakes}
+          />
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

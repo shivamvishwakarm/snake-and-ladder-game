@@ -14,8 +14,9 @@ interface PlayerInfoProps {
 
 export default function PlayerInfo({ user, bot }: PlayerInfoProps) {
   return (
-    <div className="playerInfo ">
-      <div className={`mx-28 player ${user.isCurrentTurn ? "active" : ""}`}>
+    <div className="playerInfo h-40 ">
+      <div
+        className={`mx-28 player my-10 ${user.isCurrentTurn ? "active" : ""}`}>
         <div className="playerIcon">
           <div className={`playerMarker userMarker`}></div>
         </div>
@@ -25,7 +26,7 @@ export default function PlayerInfo({ user, bot }: PlayerInfoProps) {
         </div>
       </div>
 
-      <div className={`player ${bot.isCurrentTurn ? "active" : ""}`}>
+      <div className={`player my-10 ${bot.isCurrentTurn ? "active" : ""}`}>
         <div className="playerIcon">
           <div className={`playerMarker botMarker`}></div>
         </div>

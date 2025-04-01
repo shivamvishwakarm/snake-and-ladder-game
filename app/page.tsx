@@ -211,6 +211,12 @@ export default function Home() {
             snakes={gameRules.snakes}
           />
         </div>
+        <div className="flex mt-2">
+          {gameState.userPosition === 0 && <div className="player user "></div>}
+          {gameState.botPosition === 0 && (
+            <div className="player bot mx-10"></div>
+          )}
+        </div>
       </main>
     </div>
   );

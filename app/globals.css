@@ -266,8 +266,9 @@
 /* styles/PlayerInfo.module.css */
 .playerInfo {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content:space-between;
+  flex-direction: row;
+  gap: 10rem;
   width: 100%;
   padding: 1rem;
   background-color: white;
